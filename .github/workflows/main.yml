@@ -33,6 +33,6 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add data.json
+          git add data.json sports.json vip.json events.json
           git commit -m "Auto Update Encrypted Data: $(date)" || exit 0
           git push
