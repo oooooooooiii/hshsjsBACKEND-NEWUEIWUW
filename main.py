@@ -50,15 +50,8 @@ def fetch_and_save():
     }
     save_encrypted_file('data.json', filtered_data, aes_key_str)
 
-    sports_raw = all_data.get('SPORTS', {})
-    sports_final = {}
-    
-    if isinstance(sports_raw, dict) and 'categories' in sports_raw and isinstance(sports_raw['categories'], list) and len(sports_raw['categories']) > 0:
-        sports_final = {"channels_data": sports_raw['categories'][0].get('channels_data', [])}
-    else:
-        sports_final = sports_raw
-
-    save_encrypted_file('sports.json', sports_final, aes_key_str)
+    sports_data = all_data.get('SPORTS')
+    save_encrypted_file('sports.json', sports_data, aes_key_str)
 
     vip_data = all_data.get('VIP_channel')
     save_encrypted_file('vip.json', vip_data, aes_key_str)
