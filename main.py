@@ -3,6 +3,7 @@ import hashlib
 import json
 import os
 import re
+from urllib.parse import unquote
 
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
@@ -157,6 +158,47 @@ def fetch_and_save():
         extracted_sports = sports_data
     else:
         extracted_sports = sports_data
+
+    if isinstance(extracted_sports, list):
+        for item in extracted_sports:
+            if not isinstance(item, dict):
+                continue
+
+            stream_links = item.get('stream_links', [])
+            if isinstance(stream_links, list):
+                for s_link in stream_links:
+                    if not isinstance(s_link, dict):
+                        continue
+
+                    raw_link = s_link.get('link', '')
+                    if isinstance(raw_link, str) and '<iframe' in raw_link and 'src=' in raw_link:
+                        src_match = re.search(r'src="([^"]+)"', raw_link)
+                        if src_match:
+                            src_url = src_match.group(1)
+
+                            if 'player.php' in src_url and 'url=' in src_url:
+                                match_url = re.search(r'[?&]url=([^&]+)', src_url)
+                                if match_url:
+                                    s_link['link'] = unquote(match_url.group(1))
+                                    continue
+
+                            if '?play=' in src_url:
+                                play_val = src_url.split('?play=', 1)[1]
+                                if '%3A%2F%2F' in play_val or '%3a%2f%2f' in play_val:
+                                    play_val = unquote(play_val)
+
+                                if '&k1=' in play_val and '&k2=' in play_val:
+                                    link_part, keys_part = play_val.split('&k1=', 1)
+                                    k1 = ""
+                                    k2 = ""
+                                    if '&k2=' in keys_part:
+                                        k1, k2_part = keys_part.split('&k2=', 1)
+                                        k2 = k2_part.split('&')[0]
+                                    s_link['link'] = f"{link_part}|drmScheme=clearkey&drmLicense={k1}:{k2}"
+                                else:
+                                    s_link['link'] = play_val
+                            else:
+                                s_link['link'] = src_url
 
     save_encrypted_file('sports.json', extracted_sports, aes_key_str)
 
