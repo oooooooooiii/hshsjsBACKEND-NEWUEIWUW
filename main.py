@@ -31,7 +31,7 @@ def encrypt_data(plain_text, secret_key):
 
 def save_encrypted_file(filename, raw_content, secret_key):
     if raw_content is None:
-        raw_content = [] if filename == 'sports.json' else {}
+        raw_content = [] if filename in ('sports.json', 'vip.json') else {}
 
     json_str = json.dumps(raw_content, ensure_ascii=False)
     encrypted_str = encrypt_data(json_str, secret_key)
@@ -203,6 +203,78 @@ def fetch_and_save():
     save_encrypted_file('sports.json', extracted_sports, aes_key_str)
 
     vip_data = all_data.get('VIP_channel')
+
+    if isinstance(vip_data, list):
+        for item in vip_data:
+            if not isinstance(item, dict):
+                continue
+
+            raw_stream_url = item.get('Stream_url', '')
+            if isinstance(raw_stream_url, str) and '<iframe' in raw_stream_url and 'src=' in raw_stream_url:
+                src_match = re.search(r'src="([^"]+)"', raw_stream_url)
+                if src_match:
+                    src_url = src_match.group(1)
+                    parsed_main = False
+                    if 'player.php' in src_url and 'url=' in src_url:
+                        match_url = re.search(r'[?&]url=([^&]+)', src_url)
+                        if match_url:
+                            item['Stream_url'] = unquote(match_url.group(1))
+                            parsed_main = True
+                    if not parsed_main:
+                        if '?play=' in src_url:
+                            play_val = src_url.split('?play=', 1)[1]
+                            if '%3A%2F%2F' in play_val or '%3a%2f%2f' in play_val:
+                                play_val = unquote(play_val)
+
+                            if '&k1=' in play_val and '&k2=' in play_val:
+                                link_part, keys_part = play_val.split('&k1=', 1)
+                                k1 = ""
+                                k2 = ""
+                                if '&k2=' in keys_part:
+                                    k1, k2_part = keys_part.split('&k2=', 1)
+                                    k2 = k2_part.split('&')[0]
+                                item['Stream_url'] = f"{link_part}|drmScheme=clearkey&drmLicense={k1}:{k2}"
+                            else:
+                                item['Stream_url'] = play_val
+                        else:
+                            item['Stream_url'] = src_url
+
+            stream_links = item.get('stream_links', [])
+            if isinstance(stream_links, list):
+                for s_link in stream_links:
+                    if not isinstance(s_link, dict):
+                        continue
+
+                    raw_link = s_link.get('link', '')
+                    if isinstance(raw_link, str) and '<iframe' in raw_link and 'src=' in raw_link:
+                        src_match = re.search(r'src="([^"]+)"', raw_link)
+                        if src_match:
+                            src_url = src_match.group(1)
+
+                            if 'player.php' in src_url and 'url=' in src_url:
+                                match_url = re.search(r'[?&]url=([^&]+)', src_url)
+                                if match_url:
+                                    s_link['link'] = unquote(match_url.group(1))
+                                    continue
+
+                            if '?play=' in src_url:
+                                play_val = src_url.split('?play=', 1)[1]
+                                if '%3A%2F%2F' in play_val or '%3a%2f%2f' in play_val:
+                                    play_val = unquote(play_val)
+
+                                if '&k1=' in play_val and '&k2=' in play_val:
+                                    link_part, keys_part = play_val.split('&k1=', 1)
+                                    k1 = ""
+                                    k2 = ""
+                                    if '&k2=' in keys_part:
+                                        k1, k2_part = keys_part.split('&k2=', 1)
+                                        k2 = k2_part.split('&')[0]
+                                    s_link['link'] = f"{link_part}|drmScheme=clearkey&drmLicense={k1}:{k2}"
+                                else:
+                                    s_link['link'] = play_val
+                            else:
+                                s_link['link'] = src_url
+
     save_encrypted_file('vip.json', vip_data, aes_key_str)
 
     events_data = all_data.get('sports_live')
